@@ -2,11 +2,11 @@ all: prepare
 	python3 -m build
 
 prepare: src/prepare.py
-	cp src/prepare.py src/prepare
-	chmod +x src/prepare
+	cp src/autonmt.py src/autonmt
+	chmod +x src/autonmt
 
 clean:
 	rm -f src/prepare
 	rm -rf build dist
-	rm -f src/*.egg-info
+	rm -rf src/*.egg-info
 

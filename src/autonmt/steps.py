@@ -175,6 +175,11 @@ class Split(Step):
         inputs = [arg for pair in inputs for arg in pair]
         parts = [['-set', f'{name},{val}'] for name, val in split_config['parts'].items()]
         parts = [arg for pair in parts for arg in pair]
-        remain = ['-remain', f'{self.config.outputdatadir}/{remain}']
-        trailing_options = ['-v', '-seed', seed]
-        run_and_check_result(base_command + inputs + parts, remain + trailing_options)
+        remain = ['-remain', remain]
+        trailing_options = ['-v', '-seed', str(seed)]
+        try:
+            run_and_check_result(base_command + inputs + parts + remain + trailing_options, stderr=subprocess.PIPE)
+        except SubprocessError as err:
+            logging.error(f'Error during data splitting')
+            logging.error(err.result.stderr.decode('utf-8'))
+            sys.exit(1)
