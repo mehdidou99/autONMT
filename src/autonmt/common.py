@@ -17,6 +17,8 @@ class CompleteConfig:
         config = load_config(filename)
         self.raw = config
         self.expname = config['name']
+        self.outputdir = config['output_dir'].rstrip('/')
+        self.outputdir = f'{self.outputdir}/{self.expname}'
         self.outputdatadir = config['data']['output_dir'].rstrip('/')
         self.outputdatadir = f'{self.outputdatadir}/{self.expname}'
         self.datadir = config['data'].get('dir', '.').rstrip('/')

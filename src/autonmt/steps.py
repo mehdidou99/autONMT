@@ -148,7 +148,7 @@ class BuildVocab(Step):
         logging.info(f'Building following vocabularies: {" ".join(vocab_config.keys())}')
         base_command = 'onmt-build-vocab --size 32000'.split(' ')
         for i, (vocab_name, vocab_config) in enumerate(vocab_config.items()):
-            logging.info(f'{i}) {vocab_name}')
+            logging.info(f'{i+1}) {vocab_name}')
             output_filename = vocab_config['save_to']
             output = ['--save_vocab', f'{self.config.outputdatadir}/{output_filename}']
             inputs_filenames = vocab_config['files']
@@ -183,3 +183,18 @@ class Split(Step):
             logging.error(f'Error during data splitting')
             logging.error(err.result.stderr.decode('utf-8'))
             sys.exit(1)
+
+class Train(Step):
+    def run(self):
+        os.makedirs(self.config.outputdir)
+        current_env = os.environ.copy()
+        current_env['CUDA_VISIBLE_DEVICES'] = 0
+        command_base = ['onmt-main']
+        model_file = self.config.raw['model'].get('model_file')
+        model_type = self.config.raw['model'].get('model_type')
+        model_spec = ['--model', model_file] if model_file is not None else ['--model_type', model_type]
+        model_config = ['--config', self.config.raw['model']['config']]
+        command_suffix = '--auto_config train'.split(' ')
+        options = ['--with_eval'] if 'eval' in self.config.raw['model'].get('options', []) else []
+        with open(f'{self.config.outputdir}/train.log', 'wb') as log_file:
+            run_and_check_result(command_base + model_spec + model_config + command_suffix + options, stdout=log_file, stderr=log_file)

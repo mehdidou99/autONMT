@@ -1,12 +1,15 @@
 import logging
-from .steps import LoadAndPreprocess, Tokenize, BuildVocab, Split
+import string
+
+from .steps import LoadAndPreprocess, Tokenize, BuildVocab, Split, Train
 from .common import CompleteConfig
 
 complete_pipeline = [
     ('load', LoadAndPreprocess),
     ('tokenize', Tokenize),
     ('build_vocab', BuildVocab),
-    ('split', Split)
+    ('split', Split),
+    ('train', Train)
 ]
 
 available_steps = [name for name, _ in complete_pipeline]
@@ -21,5 +24,5 @@ class Pipeline:
     def run(self):
         logging.info(f'Pipeline steps: {", ".join(name for name, _ in self.steps)}')
         for i, (step_name, step) in enumerate(self.steps):
-            logging.info(f'{i+1}) {step_name}')
+            logging.info(f'{string.ascii_uppercase[i]}) {step_name}')
             step(self.config).run()
