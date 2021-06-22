@@ -57,7 +57,7 @@ class LoadAndPreprocess(Step):
         with open(f'{self.config.preprocdir}/{corpus_info.filename_prefix_for_pair(pair)}.{src}', 'w') as f_src_out, open(f'{self.config.preprocdir}/{corpus_info.filename_prefix_for_pair(pair)}.{tgt}', 'w') as f_tgt_out:
             try:
                 run_and_check_result(['head', '-n', f'{self.config.max_entries_per_corpus}', input_src], stdout=f_src_out, stderr=subprocess.PIPE)
-                run_and_check_result(['head', '-n', f'{self.config.max_entries_per_corpus}', input_src], stdout=f_tgt_out, stderr=subprocess.PIPE)
+                run_and_check_result(['head', '-n', f'{self.config.max_entries_per_corpus}', input_tgt], stdout=f_tgt_out, stderr=subprocess.PIPE)
             except SubprocessError as err:
                 logging.error(err.result.stderr.decode('utf-8'))
                 sys.exit(1)
