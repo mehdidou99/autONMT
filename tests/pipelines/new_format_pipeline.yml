@@ -1,18 +1,27 @@
-exp: new_format_pipeline
+exp: fren_triple_source
+
+dirs:
+        data_out: /nfs/RESEARCH/benharrats/rosetta/no_opensubtitles_experiments/data/fren_triple_source
+        model_out: /nfs/RESEARCH/benharrats/rosetta/no_opensubtitles_experiments/fren_triple_source
 
 model:
-        type: Transformer
-        config: '/nfs/RESEARCH/benharrats/rosetta/no_opensubtitles_experiments/configs/michon_fren_noopensubtitles_context.yml'
+        file: /nfs/RESEARCH/benharrats/rosetta/custom_models/triple_source/triple_source.py
+        config: /nfs/RESEARCH/benharrats/rosetta/no_opensubtitles_experiments/configs/fren_triple_encoder.yml
+
+preprocessing:
+        scripts_dir: '/nfs/RESEARCH/benharrats/rosetta/preprocessing'
 
 pipelines:
         train:
                 stages:
                         - load_train_data
-                        - add_ctxt
+                        - merge_raw
                         - add_subtitle_tags
+                        - add_ctxt
                         - merge
                         - tokenize
-                        - build_vocab
+                        - build_source_vocab
+                        - build_target_vocab
                         - add_fuzzy_matches
                         - split
                         - train
@@ -26,64 +35,126 @@ pipelines:
                                 - NewsCommentary
                                 - MuST-Cinema
                                 - TED2013
-                add_ctxt:
-                        type: preprocessing
-                        config:
-                                name: ctxt
-                        corpora:
-                                - GlobalVoices
-                                - NewsCommentary
-                                - MuST-Cinema
-                                - TED2013
-                add_subtitle_tags:
-                        type: preprocessing
-                        config:
-                                name: subtitle_tagging
-                        corpora:
-                                - MuST-Cinema
-                merge:
+                        output_tags:
+                                - source
+                                - target
+                merge_raw:
                         type: merging
                         config:
-                                output_corpus_name: TrainData
-                                output_filenames:
-                                        - data.fr
-                                        - data.en
+                                output_corpus_name: RawData
                         corpora:
                                 - Tatoeba
                                 - GlobalVoices
                                 - NewsCommentary
                                 - MuST-Cinema
                                 - TED2013
+                        input_tags:
+                                - source
+                                - target
+                        output_tags:
+                                - source
+                                - target
+                add_subtitle_tags:
+                        type: preprocessing
+                        config:
+                                script: add_subtitle_tag.py
+                        corpora:
+                                - MuST-Cinema
+                        input_tags:
+                                - source
+                                - target
+                        output_tags:
+                                - source
+                                - target
+                add_ctxt:
+                        type: preprocessing
+                        config:
+                                script: one_sentence_ctxt.py
+                        corpora:
+                                - GlobalVoices
+                                - NewsCommentary
+                                - MuST-Cinema
+                                - TED2013
+                        input_tags:
+                                - source
+                        output_tags:
+                                - context
+                                - source
+                merge:
+                        type: merging
+                        config:
+                                output_corpus_name: TrainData
+                        corpora:
+                                - Tatoeba
+                                - GlobalVoices
+                                - NewsCommentary
+                                - MuST-Cinema
+                                - TED2013
+                        input_tags:
+                                - context
+                                - source
+                                - target
+                        output_tags:
+                                - context
+                                - source
+                                - target
                 tokenize:
                         type: tokenizing
-                        config:
-                                suffix: .tok
                         corpora:
                                 - TrainData
-                build_vocab:
+                        input_tags:
+                                - source
+                                - target
+                        output_tags:
+                                - source
+                                - target
+                build_source_vocab:
                         type: vocab_building
-                        options:
-                                vocabs:
-                                        source:
-                                                save_to: vocab.32k.fr
-                                        filetags:
-                                                - source
-                                        target:
-                                                save_to: vocab.32k.en
-                                        filetags:
-                                                - target
+                        corpora:
+                                - TrainData
+                        input_tags:
+                                - source
+                        output_tags:
+                                - source_vocab
+                        artifacts:
+                                dir: data_out
+                                TrainData:
+                                        source_vocab: vocab.32k.fr
+                build_target_vocab:
+                        type: vocab_building
+                        corpora:
+                                - TrainData
+                        input_tags:
+                                - target
+                        output_tags:
+                                - target_vocab
+                        artifacts:
+                                dir: data_out
+                                TrainData:
+                                        target_vocab: vocab.32k.en
                 add_fuzzy_matches:
                         type: preprocessing
                         config:
                                 name: fuzzy_matching
                         corpora:
                                 - TrainData
+                        input_tags:
+                                - context
+                                - source
+                                - target
+                        additional_inputs:
+                                raw_data:
+                                        corpus: RawData
+                                        tags:
+                                                - source
+                        output_tags:
+                                - context
+                                - fuzzy
+                                - source
+                                - target
                 split:
                         type: data_splitting
                         config:
-                                filetags:
-                                        - source
-                                        - target
                                 parts:
                                         tst:
                                                 size: 500
@@ -95,14 +166,58 @@ pipelines:
                                         trn:
                                                 subtag: trn
                                 seed: 13
+                        corpora:
+                                - TrainData
+                        input_tags:
+                                - context
+                                - fuzzy
+                                - source
+                                - target
+                        artifacts:
+                                dir: data_out
+                                TrainData:
+                                        root: data.tok
+                                        tags:
+                                                suffixes:
+                                                        context: ss.ctxt
+                                                        fuzzy: ss.fuzzy
+                                                        source: ss
+                                                        target: tt
+                                        subtags:
+                                                suffixes:
+                                                        trn: trn
+                                                        tst: tst
+                                                        val: val
                 train:
                         type: training
                         config:
-                                config_file: ../configs/new_format_pipeline.yml
-                        corpora:
-                                - TrainData
+                                output_dir: model_out
+                                options:
+                                        - eval
 
         test:
+                stages:
+                        - load_test_data
+                        - add_subtitle_tags
+                        - add_ctxt
+                        - merge
+                        - tokenize
+                        - add_fuzzy_matches
+                        - test
+                load_test_data:
+                        type: data_query
+                        config:
+                                name: test
+                        corpora:
+                                - Tatoeba
+                                - GlobalVoices
+                                - NewsCommentary
+                                - MuST-Cinema
+                                - TED2013
+                        output_tags:
+                                - source
+                                - target
+
 
 data_query_train:
         search_root: /nfs/SSALING-DATA/michon/projects/rosetta/data/multilingual
@@ -120,30 +235,11 @@ data_query_train:
                 max_entries: 1000000
                 options:
                         - try_reversed_lg_pairs
-        filetags:
-                - source
-                - target
         on_missing_data:
                 - exit_error
-
-preprocessing:
-        scripts_dir: '/nfs/RESEARCH/benharrats/rosetta/preprocessing'
-
-preprocessing_ctxt:
-        needs:
-                - source
-        on:
-                - source
-        suffix: .ctxt
-        script: one_sentence_ctxt.py
+data_query_test:
+        search_root: /nfs/SSALING-DATA/michon/projects/rosetta/data/multilingual/aligned_testsets
+        subpaths:
+        query:
                 
-preprocessing_subtitle_tagging:
-        corpora:
-                - MuST-Cinema
 
-        script: add_subtitle_tag.py
-        
-train:
-        output_dir: '/nfs/RESEARCH/benharrats/rosetta/no_opensubtitles_experiments'
-        options:
-                - eval
